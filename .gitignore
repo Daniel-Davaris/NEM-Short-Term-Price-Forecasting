@@ -1,0 +1,42 @@
+
+# Preprocessing folder — ignore file contents but keep subfolder structure via .gitkeep
+raw_data/preprocessing/*
+!raw_data/preprocessing/.gitkeep
+!raw_data/preprocessing/*/
+raw_data/preprocessing/*/*
+!raw_data/preprocessing/*/.gitkeep
+
+# nemosis consolidated parquets are tracked via Git LFS (see .gitattributes)
+
+# weather_data files are tracked (small, not regenerated)
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Log files
+*.log
+*.txt
+!requirements.txt
+fetch_pdpasa_log.txt
+fetch_pdpasa_err.txt
+pdpasa_run.log
+
+# VS Code
+.vscode/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+Dataset/Processed_data/9_bidstack.csv
+Dataset/Processed_data/5_weather.csv
+Dataset/Processed_data/2_dispatch_region_sum.csv
+
+# Large data files - local only
+Dataset/Processed_data/
+Dataset/Pre_processing/weather_data/
+Dataset/Pre_processing/temporary_cache/
