@@ -3,11 +3,6 @@ __pycache__/
 *.py[cod]
 *.pyo
 
-# Log files
-*.log
-fetch_pdpasa_log.txt
-fetch_pdpasa_err.txt
-pdpasa_run.log
 
 # VS Code
 .vscode/
@@ -19,6 +14,5 @@ pdpasa_run.log
 .DS_Store
 Thumbs.db
 
-# Data files - local only
-Dataset/Processed_data/
-Dataset/Pre_processing/temporary_cache/
+
+
