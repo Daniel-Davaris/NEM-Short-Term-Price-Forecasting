@@ -15,5 +15,16 @@ __pycache__/
 Thumbs.db
 
 
+# track the csv files in 1_Dataset/Pre_processing/weather_data with git lfs
 
-Dataset/Processed_data/6_1_predispatch_price.csv
+# ignore all csv files outside of 1_Dataset/Pre_processing/weather_data
+*.csv
+!1_Dataset/Pre_processing/weather_data/*.csv
+
+# track all .gz files with git lfs anywhere
+
+# ignore any .parquet files anywhere
+*.parquet
+
+# ignore any .xlsx files anywhere
+*.xlsx

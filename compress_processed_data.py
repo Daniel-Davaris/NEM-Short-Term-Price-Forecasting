@@ -7,7 +7,7 @@ import gzip
 import shutil
 from pathlib import Path
 
-PROCESSED_DATA_DIR = Path(__file__).parent / "Dataset" / "Processed_data"
+PROCESSED_DATA_DIR = Path(__file__).parent / "1_Dataset" / "Processed_data"
 
 
 def compress_csvs(directory: Path) -> None:
