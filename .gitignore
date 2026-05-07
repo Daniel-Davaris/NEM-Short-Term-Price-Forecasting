@@ -25,3 +25,5 @@ Thumbs.db
 
 # virtual environment
 .venv
+.venv-main
+.venv-subprocess
