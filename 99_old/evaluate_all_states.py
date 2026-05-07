@@ -279,16 +279,16 @@ def main():
     print("GENERATING OUTPUTS", flush=True)
     print("-" * 80 + "\n", flush=True)
     
-    # 1. Metrics summary (CSV)
+    # 1. Metrics summary (parquet)
     metrics_df = generate_metrics_dataframe(results)
-    metrics_csv = OUTPUTS_DIR / "all_states_metrics_data.csv"
-    metrics_df.to_csv(metrics_csv, index=False)
+    metrics_csv = OUTPUTS_DIR / "all_states_metrics_data.parquet"
+    metrics_df.to_parquet(metrics_csv, index=False)
     print(f"✓ Metrics data saved to:   {metrics_csv}", flush=True)
     
-    # 2. Per-step metrics (CSV)
+    # 2. Per-step metrics (parquet)
     steps_df = generate_steps_dataframe(results)
-    steps_csv = OUTPUTS_DIR / "all_states_steps_by_state.csv"
-    steps_df.to_csv(steps_csv, index=False)
+    steps_csv = OUTPUTS_DIR / "all_states_steps_by_state.parquet"
+    steps_df.to_parquet(steps_csv, index=False)
     print(f"✓ Step metrics saved to:   {steps_csv}", flush=True)
     
     # 3. Summary report (TXT)

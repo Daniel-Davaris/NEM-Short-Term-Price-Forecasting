@@ -1,0 +1,26 @@
+# Main environment — Python 3.13 (latest)
+# Install with: pip install -r requirements-main.txt
+
+# AEMO / NEM data fetching
+nemosis>=3.8.0
+
+# Core data libraries
+pandas>=2.0.0
+numpy>=1.24.0
+pyarrow>=14.0.0          # fast parquet I/O
+
+# Machine learning
+scikit-learn>=1.3.0
+lightgbm>=4.3.0
+
+# Australian public holidays
+holidays>=0.46
+
+# Plotting / reporting
+matplotlib>=3.7.0
+seaborn>=0.13.0
+openpyxl>=3.1.0
+tqdm>=4.65.0             # progress bars in feature selection notebook
+
+# Model persistence
+joblib>=1.3.0

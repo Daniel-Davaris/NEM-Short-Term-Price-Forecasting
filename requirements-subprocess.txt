@@ -1,0 +1,7 @@
+# Subprocess environment — Python 3.11 (required by nemseer)
+# Install with: pip install -r requirements-subprocess.txt
+# Create env: python3.11 -m venv ~/venv311 && source ~/venv311/bin/activate
+
+nemseer>=1.0.0
+pandas>=2.0.0            # subprocess code imports pandas directly
+

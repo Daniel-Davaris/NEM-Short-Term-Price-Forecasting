@@ -126,7 +126,7 @@ def _save_predictions_csv(eval_output: dict, file_tag: str) -> None:
     by gap intervals (the first horizon step), giving one unique prediction per
     target half-hour interval regardless of the model's gap or horizon.
     """
-    out_path = OUTPUTS_DIR / "predictions" / f"{file_tag}_predictions.csv"
+    out_path = OUTPUTS_DIR / "predictions" / f"{file_tag}_predictions.parquet"
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     results_df = eval_output["results_df"]
@@ -141,8 +141,8 @@ def _save_predictions_csv(eval_output: dict, file_tag: str) -> None:
         "Predictions": results_df[first_pred_col].values,
     })
 
-    flat_df.to_csv(out_path, index=False)
-    print(f"  Predictions csv -> {out_path}  ({out_path.stat().st_size / 1e6:.2f} MB)", flush=True)
+    flat_df.to_parquet(out_path, index=False)
+    print(f"  Predictions parquet -> {out_path}  ({out_path.stat().st_size / 1e6:.2f} MB)", flush=True)
 
 
 def run_region(
@@ -158,7 +158,7 @@ def run_region(
     file_tag   = f"{region_tag}_{tag}"   # e.g. "nsw_g1h16_2018_2024"
 
     accuracy_path    = OUTPUTS_DIR / "accuracy_reports" / f"{file_tag}_accuracy.xlsx"
-    predictions_path = OUTPUTS_DIR / "predictions"      / f"{file_tag}_predictions.csv"
+    predictions_path = OUTPUTS_DIR / "predictions"      / f"{file_tag}_predictions.parquet"
     model_path       = MODELS_DIR / f"{file_tag}_model.joblib"
 
     # ── Skip if fully complete ──────────────────────────────────────────────
