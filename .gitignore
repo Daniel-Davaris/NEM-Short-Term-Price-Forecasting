@@ -23,6 +23,9 @@ Thumbs.db
 # ignore any .xlsx files anywhere
 *.xlsx
 
+# parquet files live in S3 (use s3_sync.sh)
+*.parquet
+
 # virtual environment
 .venv
 .venv-main
