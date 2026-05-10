@@ -1,0 +1,3 @@
+aws s3 sync "2_Features build/Feature_data" s3://forecasting-nem-dd/2_Features_build/Feature_data --region ap-southeast-2 --include "*.parquet"
+aws s3 sync "3_Targets build/Target_data" s3://forecasting-nem-dd/3_Targets_build/Target_data --region ap-southeast-2 --include "*.parquet"
+aws s3 sync "4_Features select/Selected_features" s3://forecasting-nem-dd/4_Features_select/Selected_features --region ap-southeast-2 --include "*.parquet"

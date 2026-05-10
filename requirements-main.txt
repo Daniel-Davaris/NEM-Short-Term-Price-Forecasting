@@ -8,6 +8,7 @@ nemosis>=3.8.0
 pandas>=2.0.0
 numpy>=1.24.0
 pyarrow>=14.0.0          # fast parquet I/O
+s3fs>=2023.6.0           # transparent S3 I/O for pandas
 
 # Machine learning
 scikit-learn>=1.3.0
