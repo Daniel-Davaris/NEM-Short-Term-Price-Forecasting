@@ -3,3 +3,8 @@ aws s3 sync . s3://forecasting-nem-dd --region ap-southeast-2 --exclude ".venv*"
 
 # pull
 aws s3 sync s3://forecasting-nem-dd . --region ap-southeast-2 --exclude ".venv*"
+
+
+
+
+.\venv-main\Scripts\Activate.ps1
