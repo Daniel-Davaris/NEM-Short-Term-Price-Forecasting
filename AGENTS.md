@@ -16,8 +16,8 @@ NEM Regional Reference Price (RRP) forecaster: 5-minute electricity price predic
 - `99_old/` is archived code — do not edit, but consult for reference patterns.
 
 Environments — two venvs, do not mix
-- **`.venv-main`** (Python 3.13) — default for everything: nemosis, scikit-learn, lightgbm, pandas, pyarrow, holidays. Deps: [requirements-main.txt](requirements-main.txt).
-- **`.venv-subprocess`** (Python 3.11) — used **only** for nemseer (which requires 3.11). Invoked as a subprocess from main env. Deps: [requirements-subprocess.txt](requirements-subprocess.txt).
+- **`C:\Users\danie\.venvs\forecasting-main`** (Python 3.13) — default for everything: nemosis, scikit-learn, lightgbm, pandas, pyarrow, holidays. Deps: [requirements-main.txt](requirements-main.txt).
+- **`C:\Users\danie\.venvs\forecasting-subprocess`** (Python 3.11) — used **only** for nemseer (which requires 3.11). Invoked as a subprocess from main env. Deps: [requirements-subprocess.txt](requirements-subprocess.txt).
 
 
 
