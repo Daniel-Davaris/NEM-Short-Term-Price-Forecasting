@@ -1,6 +1,6 @@
 Host forecasting-ec2
     HostName 13.238.35.209
     User ec2-user
-    IdentityFile /Users/danieldavaris/Forecasting/local_ssh/Credentials/AWS.pem
+    IdentityFile /Users/danieldavaris/Forecasting/support/local_ssh/Credentials/AWS.pem
     IdentitiesOnly yes
     StrictHostKeyChecking accept-new
