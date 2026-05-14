@@ -1,5 +1,0 @@
-Host forecasting-ec2
-    HostName 13.238.35.209
-    User ec2-user
-    IdentityFile ~/.ssh/AWS.pem
-    IdentitiesOnly yes
