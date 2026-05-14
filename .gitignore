@@ -27,11 +27,5 @@ Thumbs.db
 *.parquet
 
 # virtual environment
-.venv
-
-# SSH config (contains host details)
 .venv-main
 .venv-subprocess
-
-# Local SSH config and credentials
-local_ssh/
