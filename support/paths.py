@@ -18,7 +18,7 @@ from pathlib import Path
 S3_BUCKET = "forecasting-nem-dd"
 USE_S3 = os.environ.get("USE_S3", "0") == "1"
 
-_REPO_ROOT = Path(__file__).parent
+_REPO_ROOT = Path(__file__).parent.parent
 
 def resolve(repo_root_relative: str) -> str:
     """Return an absolute local path or S3 URI for a repo-root-relative path.

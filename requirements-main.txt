@@ -1,4 +1,4 @@
-# Main environment — Python 3.13 (latest)
+# Main environment — Python 3.14 (latest)
 # Install with: pip install -r requirements-main.txt
 
 # AEMO / NEM data fetching
