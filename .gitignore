@@ -25,6 +25,7 @@ Thumbs.db
 
 # parquet files live in S3 (use s3_sync.sh)
 *.parquet
+*.joblib
 
 # virtual environment
 .venv

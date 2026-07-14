@@ -40,7 +40,19 @@ FEATURES_UNIQUE_DATA_PATH = CWD/"4_Features_select"/"Selected_features"/"FEATURE
 # Get optimal number of features
 FEATURES_OPTIMAL_AMOUNT_PATH =  CWD/"4_Features_select"/"Selected_features"/"FEATURES_OPTIMAL_AMOUNT.parquet"
 
-# Split into (train / valid / test)
+
+# Training
 TRAIN_START = pd.to_datetime("2019/01/01")   
 VALID_START = pd.to_datetime("2024/07/01") # 6 months before TEST_START
 TEST_START = pd.to_datetime("2025/01/01") # 12 months before FEATURE_DATASET_END
+
+TRAINED_MODELS_PATH =  CWD/"4_Model"/"Data"/"3_trained_models"
+
+
+
+# Post training
+PRICE_TRANSFORM_SCALE = 100.0
+SPIKE_THRESHOLD = 150.0
+DIP_THRESHOLD = 0.0
+
+NAIVE_BASELINE_PREDICTOR_COLUMN  = f"{SELECTED_TARGET_COLUMN_NAME}_lag_336"
