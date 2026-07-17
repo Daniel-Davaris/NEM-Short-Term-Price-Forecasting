@@ -46,7 +46,7 @@ TRAIN_START = pd.to_datetime("2019/01/01")
 VALID_START = pd.to_datetime("2024/07/01") # 6 months before TEST_START
 TEST_START = pd.to_datetime("2025/01/01") # 12 months before FEATURE_DATASET_END
 
-TRAINED_MODELS_PATH =  CWD/"4_Model"/"Data"/"3_trained_models"
+TRAINED_MODELS_PATH =  CWD/"5_Model"/"Data"/"3_trained_models"
 
 
 
