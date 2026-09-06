@@ -13,6 +13,7 @@ import pandas as pd
 import io
 import openpyxl
 import pyarrow as pa
+import pyarrow.parquet as pq
 
 
 logging.getLogger("nemosis").setLevel(logging.WARNING)
@@ -93,13 +94,40 @@ def _month_compiler(
             datasource_file_path.unlink()
             datasource_file_year_month_range = set()
 
-    # Also skip months already streamed to a part file by an interrupted run.
+    # Also skip months already streamed to a *complete* part file by an
+    # interrupted run. A tiny/partial part must be fetched again; blindly
+    # accepting any file here previously made a 48-row March 2021 bid part mask
+    # the missing month forever.
     if parts_dir.exists():
         for part in parts_dir.glob("*.parquet"):
             try:
-                datasource_file_year_month_range.add(pd.Period(part.stem, freq="M"))
-            except Exception:
-                pass
+                period = pd.Period(part.stem, freq="M")
+                part_idx = pd.read_parquet(part, columns=[]).index
+                expected = len(pd.date_range(
+                    period.start_time,
+                    period.end_time.floor("5min"),
+                    freq="5min",
+                ))
+                actual = int(pd.Index(part_idx).nunique())
+                part_value_ok = True
+                part_cols = [
+                    c for c in pq.ParquetFile(part).schema_arrow.names
+                    if c != "Date"
+                ]
+                if part_cols:
+                    step = max(1, len(part_cols) // 100)
+                    sample = pd.read_parquet(part, columns=part_cols[::step][:100])
+                    part_value_ok = float(sample.isna().mean().mean()) < 0.90
+                if actual >= max(2, int(0.5 * expected)) and part_value_ok:
+                    datasource_file_year_month_range.add(period)
+                else:
+                    print(
+                        f"  Incomplete saved part {part.name}: {actual:,}/{expected:,} rows; "
+                        "will re-fetch.",
+                        flush=True,
+                    )
+            except Exception as e:
+                print(f"  Unreadable saved part {part.name} ({e}); will re-fetch.", flush=True)
 
     # Set a var for total required data range
     datasource_required_total_range = pd.date_range(start_date, end_date - pd.Timedelta(days=1), freq="MS")
@@ -181,6 +209,19 @@ def _month_compiler(
                 print(f"  {month:%Y-%m} SKIPPED — no rows returned.", flush=True)
                 continue
 
+            # Each fetch may include the next month's 00:00 boundary. Clip to
+            # [month_start, month_end) before saving so adjacent monthly parts
+            # cannot create duplicate timestamps during assembly.
+            month_start_ts = pd.Timestamp(current_month_start)
+            month_end_ts = pd.Timestamp(current_month_end)
+            datasource_data = datasource_data[
+                (datasource_data.index >= month_start_ts) &
+                (datasource_data.index < month_end_ts)
+            ]
+            if datasource_data.empty:
+                print(f"  {month:%Y-%m} SKIPPED — no in-month rows returned.", flush=True)
+                continue
+
             # Ensure the index name is set correctly
             datasource_data.index.name = "Date"
             # Write only this month to its own part file — no full-dataset reload.
@@ -225,11 +266,24 @@ def _month_compiler(
         # NaN) — reproduces the column-union that pd.concat performed implicitly.
         master_cols = list(existing.columns) if existing is not None else []
         seen = set(master_cols)
+        string_cols = {
+            c for c in master_cols
+            if c.endswith("_bands") or c.endswith("_prices")
+        }
         for p in part_files.values():
-            for c in _pq.ParquetFile(p).schema_arrow.names:
+            part_schema = _pq.ParquetFile(p).schema_arrow
+            for field in part_schema:
+                c = field.name
                 if c not in seen and c != "Date":
                     seen.add(c)
                     master_cols.append(c)
+                if c != "Date" and (
+                    pa.types.is_string(field.type) or
+                    pa.types.is_large_string(field.type) or
+                    c.endswith("_bands") or
+                    c.endswith("_prices")
+                ):
+                    string_cols.add(c)
 
         months = set(part_files)
         if existing_periods is not None:
@@ -249,10 +303,23 @@ def _month_compiler(
                 if dfm.empty:
                     continue
                 dfm = dfm.sort_index().reindex(columns=master_cols)
+                # Missing entity columns are introduced by reindex as float NaN.
+                # Force domain string columns back to a nullable string dtype so
+                # an all-missing DUID in one month cannot change the Arrow schema
+                # from string to double and abort the whole assembly.
+                for c in string_cols:
+                    dfm[c] = dfm[c].astype("string")
                 dfm.index.name = "Date"
                 table = pa.Table.from_pandas(dfm, preserve_index=True)
                 if writer is None:
                     writer = _pq.ParquetWriter(tmp_path, table.schema)
+                else:
+                    # Keep the first table's pandas/index metadata byte-for-byte
+                    # across every month; dtype metadata differences are enough
+                    # for ParquetWriter to reject an otherwise compatible table.
+                    table = table.replace_schema_metadata(writer.schema.metadata)
+                    if table.schema != writer.schema:
+                        table = table.cast(writer.schema)
                 writer.write_table(table)
                 del dfm, table
                 gc.collect()
@@ -593,7 +660,12 @@ def _weather(start: str, end: str):
         data = data.rename(columns={col: f"{str(col).strip().lower().replace(' ', '')}_{city}" for col in data.columns})
         data = data.apply(pd.to_numeric, errors="coerce")
         data = data.dropna(axis=1, how="all")
-        return data.resample(f"{5}min").interpolate(method="time")
+
+        # The source observations are hourly. Carry the latest published
+        # observation forward to the 5-minute grid: linear interpolation would
+        # use the following hour's observation and leak future information into
+        # intra-hour forecast origins.
+        return data.resample("5min").ffill()
     
     sydney, brisbane, melbourne, adelaide = _load()
 
@@ -1294,7 +1366,9 @@ def _clean_bid_availability(API_response: pd.DataFrame) -> pd.DataFrame:
     duids = sorted(band_data.columns.get_level_values("DUID").unique())
     bands_dict = {}
     for duid in duids:
-        duid_cols = band_data.xs(duid, axis=1, level="DUID").fillna(0).astype(int).astype(str)
+        # Preserve fractional MW offers; casting through int silently truncated
+        # every decimal band value before serialisation.
+        duid_cols = band_data.xs(duid, axis=1, level="DUID").fillna(0).astype("float32").astype(str)
         bands_dict[f"{duid}_bands"] = duid_cols.iloc[:, 0].str.cat(duid_cols.iloc[:, 1:], sep=",")
     bands = pd.DataFrame(bands_dict, index=band_data.index)
 
@@ -1329,7 +1403,8 @@ def _clean_bid_prices(API_response: pd.DataFrame) -> pd.DataFrame:
     duids = sorted(price_data.columns.get_level_values("DUID").unique())
     prices_dict = {}
     for duid in duids:
-        duid_cols = price_data.xs(duid, axis=1, level="DUID").fillna(0).astype(int).astype(str)
+        # Preserve fractional $/MWh price bands rather than truncating to int.
+        duid_cols = price_data.xs(duid, axis=1, level="DUID").fillna(0).astype("float32").astype(str)
         prices_dict[f"{duid}_prices"] = duid_cols.iloc[:, 0].str.cat(duid_cols.iloc[:, 1:], sep=",")
     result = pd.DataFrame(prices_dict, index=price_data.index)
 
@@ -1398,7 +1473,17 @@ def _bid_prices(start: str, end: str, cache_dir="Pre_processing/temporary_cache"
             fformat="feather", keep_csv=False, parse_data_types=False,
         )
 
-    return _clean_bid_prices(_API_call())
+    result = _clean_bid_prices(_API_call())
+    # BIDDAYOFFER is daily. resample().ffill() stops at the timestamp of the
+    # final daily record, previously leaving the last 23h55 of many months
+    # absent. Extend causally to the full requested 5-minute month.
+    full_idx = pd.date_range(
+        pd.Timestamp(start),
+        pd.Timestamp(end) - pd.Timedelta(minutes=5),
+        freq="5min",
+        name="Date",
+    )
+    return result.reindex(full_idx).ffill()
 
 
 def _bid_prices_fallback(start: str, end: str, cache_dir="Pre_processing/temporary_cache") -> pd.DataFrame:
@@ -1414,4 +1499,11 @@ def _bid_prices_fallback(start: str, end: str, cache_dir="Pre_processing/tempora
     if raw.empty:
         raise RuntimeError("settlement BIDDAYOFFER contained no ENERGY rows")
     print(f"    MMSDM archive: parsed {len(raw):,} settlement BIDDAYOFFER rows.", flush=True)
-    return _clean_bid_prices(raw)
+    result = _clean_bid_prices(raw)
+    full_idx = pd.date_range(
+        pd.Timestamp(start),
+        pd.Timestamp(end) - pd.Timedelta(minutes=5),
+        freq="5min",
+        name="Date",
+    )
+    return result.reindex(full_idx).ffill()
