@@ -1,0 +1,69 @@
+{
+  "exported_utc": "2026-09-07T10:46:18.442469+00:00",
+  "target_region": "nsw",
+  "test_start": "2025-01-01 00:00:00",
+  "pipeline_end": "2026-01-01 00:00:00",
+  "horizon_granularity_minutes": 30,
+  "total_horizons": 96,
+  "exported_horizons": [
+    1,
+    12,
+    48,
+    96
+  ],
+  "spike_threshold_aud_per_mwh": 150.0,
+  "dip_threshold_aud_per_mwh": 0.0,
+  "model_artifact": {
+    "schema_version": 3,
+    "approach": "purged_residual_stacking_with_calibrated_spike_router",
+    "created_utc": "2026-09-07T05:22:57.115439+00:00"
+  },
+  "sources": {
+    "predictions": {
+      "path": "/home/daniel-davaris/Documents/NEM-Short-Term-Price-Forecasting/EPF/5_Model/Data/5_model_results/actual_vs_predicted_test_set.parquet",
+      "size_bytes": 270064921,
+      "modified_utc": "2026-09-07T05:31:26.933718+00:00"
+    },
+    "long_metrics": {
+      "path": "/home/daniel-davaris/Documents/NEM-Short-Term-Price-Forecasting/EPF/5_Model/Data/5_model_results/forecast_benchmark_metrics.csv",
+      "size_bytes": 104677,
+      "modified_utc": "2026-09-07T05:34:20.117740+00:00"
+    },
+    "horizon_metrics": {
+      "path": "/home/daniel-davaris/Documents/NEM-Short-Term-Price-Forecasting/EPF/5_Model/Data/5_model_results/forecast_benchmark_by_horizon.csv",
+      "size_bytes": 52191,
+      "modified_utc": "2026-09-07T05:34:23.425748+00:00"
+    },
+    "final_model": {
+      "path": "/home/daniel-davaris/Documents/NEM-Short-Term-Price-Forecasting/EPF/5_Model/Data/4_combine_models/final_params.joblib",
+      "size_bytes": 9511131,
+      "modified_utc": "2026-09-07T05:22:57.223062+00:00"
+    }
+  },
+  "exports": {
+    "method_summary": {
+      "path": "method_summary.csv",
+      "size_bytes": 966
+    },
+    "performance_by_horizon": {
+      "path": "performance_by_horizon.csv",
+      "size_bytes": 53000
+    },
+    "performance_long": {
+      "path": "performance_long.csv",
+      "size_bytes": 111405
+    },
+    "selected_predictions_parquet": {
+      "path": "selected_horizon_predictions.parquet",
+      "size_bytes": 11840473
+    },
+    "data_dictionary": {
+      "path": "data_dictionary.csv",
+      "size_bytes": 2002
+    },
+    "selected_predictions_csv": {
+      "path": "selected_horizon_predictions.csv",
+      "size_bytes": 45973219
+    }
+  }
+}

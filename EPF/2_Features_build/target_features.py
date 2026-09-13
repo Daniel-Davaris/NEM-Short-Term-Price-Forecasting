@@ -23,10 +23,10 @@ Two properties make them special and dictate how they must be wired in:
 Location: EPF/2_Features_build/target_features.py. Consumers add that folder to
 sys.path and `import target_features`.
 
-Consumers: 5_Model/2_train_models (training), 3_build_holistic_model (blend/spike
-tuning) and 4_evaluate_model (test prediction) all append these columns to each
-horizon's feature block, always in TARGET_TIME_FEATURE_NAMES order so the column
-order matches between fit and predict.
+Consumers: 5_Model/2_train_models (training),
+3_1_generate_validation_predictions and 4_evaluate_model all append these
+columns to each horizon's feature block, always in TARGET_TIME_FEATURE_NAMES
+order so the column order matches between fit and predict.
 """
 from __future__ import annotations
 

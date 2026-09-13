@@ -27,6 +27,7 @@ HORIZON_COUNT = int(HORIZON_LENGTH_IN_HOURS * (60 // HORIZON_GRANULARITY_IN_MINU
 FEATURE_GRANULARITY_IN_MINUTES = 5
 HORIZON_LENGTH_IN_HOURS
 # Features
+SELECTED_FEATURES_DIR = CWD/"4_Features_select"/"Selected_features"
 # Combined matrix written by 2_Features_build/0_all.ipynb (all per-source
 # Feature_data/*.parquet concatenated on the dispatch-price index).
 FEATURE_DATASET_NAME = "0_all_features.parquet"
@@ -55,14 +56,17 @@ TRAINED_MODELS_PATH =  CWD/"5_Model"/"Data"/"3_trained_models"
 PRICE_TRANSFORM_SCALE = 100.0
 SPIKE_THRESHOLD = 150.0
 DIP_THRESHOLD = 0.0
-FULL_RANGE_ALPHA_PATH = CWD/"5_Model/Data/4_combine_models/full_range_alphas.csv"
-FULL_RANGE_BLEND_PATH = CWD/"5_Model/Data/4_combine_models/full_range_blend.parquet"
-SPIKE_MODELS_BLEND_PARAMS_PATH = CWD/"5_Model/Data/4_combine_models/spike_models_blend_params.csv"
-DIP_MODELS_BLEND_PARAMS_PATH = CWD/"5_Model/Data/4_combine_models/dip_models_blend_params.csv"
-ALL_MODELS_BEST_BLEND_PATH = CWD/"5_Model/Data/4_combine_models/all_models_best_blend.joblib"
-FINAL_PARAMS_PATH = CWD/"5_Model/Data/4_combine_models/final_params.joblib"
+HOLISTIC_MODEL_DIR = CWD/"5_Model/Data/4_combine_models"
+VALIDATION_COMPONENT_PREDICTIONS_PATH = HOLISTIC_MODEL_DIR/"1_validation_component_predictions.parquet"
+VALIDATION_META_FEATURES_PATH = HOLISTIC_MODEL_DIR/"2_validation_meta_features.parquet"
+RESIDUAL_STACKERS_DIR = HOLISTIC_MODEL_DIR/"3_residual_stackers"
+RESIDUAL_STACKER_DIAGNOSTICS_PATH = HOLISTIC_MODEL_DIR/"3_residual_stacker_diagnostics.csv"
+VALIDATION_CENTRAL_PREDICTIONS_PATH = HOLISTIC_MODEL_DIR/"3_validation_predictions.parquet"
+FINAL_PARAMS_PATH = HOLISTIC_MODEL_DIR/"final_params.joblib"
 
 # Evaluation
-ACTUAL_VS_PREDICTED_TEST_SET  = CWD/"5_Model/Data/5_model_results/actual_vs_predicted_test_set.parquet"
-
-
+MODEL_RESULTS_DIR = CWD/"5_Model/Data/5_model_results"
+AEMO_PREDISPATCH_PATH = CWD/"1_Dataset/Processed_data/6_1_predispatch_price.parquet"
+ACTUAL_VS_PREDICTED_TEST_SET = MODEL_RESULTS_DIR/"actual_vs_predicted_test_set.parquet"
+BENCHMARK_METRICS_PATH = MODEL_RESULTS_DIR/"forecast_benchmark_metrics.csv"
+BENCHMARK_SUMMARY_PATH = MODEL_RESULTS_DIR/"forecast_benchmark_by_horizon.csv"
