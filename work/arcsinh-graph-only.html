@@ -1,0 +1,66 @@
+<div id="arcsinh-graph-only">
+  <style>
+    #arcsinh-graph-only, #arcsinh-graph-only svg text {font-family: 'Times New Roman', Times, serif;}
+    #arcsinh-graph-only .samples, #arcsinh-graph-only .control, #arcsinh-graph-only .reading {display:none;}
+    #arcsinh-graph-only h2 {text-align:center;margin:0 0 6px;}
+    #arcsinh-graph-only {color:var(--foreground);width:100%}
+    #arcsinh-graph-only svg {display:block;width:100%}
+    #arcsinh-graph-only svg text {fill:var(--foreground);font-size:12px}
+    #arcsinh-graph-only .axis path,#arcsinh-graph-only .axis line {stroke:var(--border)}
+    #arcsinh-graph-only .reading {margin:12px 0;text-align:center}
+    #arcsinh-graph-only .samples {display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:center;margin:12px 0}
+    #arcsinh-graph-only .control {margin-top:12px}
+  </style>
+  <h2>Arcsinh price transformation</h2>
+  <svg role="img" aria-label="Price divided by 100 and transformed with inverse hyperbolic sine. The curve passes through zero, is nearly straight near zero, and flattens toward both extremes."></svg>
+  <div class="samples tabular-nums" aria-label="Example price transformations">
+    <span>-$1,000 &rarr; -3.00</span><span>-$100 &rarr; -0.88</span><span>$0 &rarr; 0</span><span>$100 &rarr; 0.88</span><span>$1,000 &rarr; 3.00</span><span>$10,000 &rarr; 5.30</span>
+  </div>
+  <div class="control">
+    <label class="form-label" for="arcsinh-price-slider">Price ($/MWh)</label>
+    <input class="form-range" id="arcsinh-price-slider" type="range" min="-2000" max="2000" step="10" value="1000">
+  </div>
+  <div class="reading tabular-nums" aria-live="polite"></div>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+  <script>
+  (() => {
+    const root=document.getElementById('arcsinh-graph-only');
+    const node=root.querySelector('svg'), slider=root.querySelector('input'), reading=root.querySelector('.reading');
+    const data=d3.range(-2000,2001,5).map(p=>({p,t:Math.asinh(p/100)}));
+    const money=new Intl.NumberFormat('en-AU',{style:'currency',currency:'AUD',maximumFractionDigits:0});
+    let marker, guideX,guideY,x,y;
+    function update(){
+      const p=Number(slider.value),t=Math.asinh(p/100);
+      marker.attr('cx',x(p)).attr('cy',y(t));
+      guideX.attr('x1',x(p)).attr('x2',x(p)).attr('y1',y(0)).attr('y2',y(t));
+      guideY.attr('x1',x(0)).attr('x2',x(p)).attr('y1',y(t)).attr('y2',y(t));
+      reading.textContent=money.format(p)+'/MWh  →  '+t.toFixed(3)+' transformed units';
+    }
+    function draw(){
+      const w=node.parentElement.getBoundingClientRect().width,h=340,m={l:64,r:20,t:24,b:58};
+      const svg=d3.select(node).attr('viewBox',`0 0 ${w} ${h}`).attr('height',h);
+      svg.selectAll('*').remove();
+      const xd=d3.extent(data,d=>d.p),yd=d3.extent(data,d=>d.t);
+      x=d3.scaleLinear().domain([xd[0]-100,xd[1]+100]).range([m.l,w-m.r]);
+      y=d3.scaleLinear().domain([yd[0]-.35,yd[1]+.35]).range([h-m.b,m.t]);
+      svg.append('rect').attr('data-chart-frame','').attr('x',m.l).attr('y',m.t).attr('width',w-m.l-m.r).attr('height',h-m.b-m.t).attr('fill','none').attr('stroke','var(--border)');
+      svg.append('rect').attr('x',x(-100)).attr('y',m.t).attr('width',x(100)-x(-100)).attr('height',h-m.b-m.t).attr('fill','var(--viz-series-1)').attr('opacity',.1);
+      svg.append('g').attr('class','axis').attr('transform',`translate(0,${h-m.b})`).call(d3.axisBottom(x).tickValues(w<450?[-2000,0,2000]:[-2000,-1000,0,1000,2000]).tickFormat(d3.format(',')));
+      svg.append('g').attr('class','axis').attr('transform',`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5));
+      svg.append('line').attr('x1',m.l).attr('x2',w-m.r).attr('y1',y(0)).attr('y2',y(0)).attr('stroke','var(--border)');
+      svg.append('line').attr('x1',x(0)).attr('x2',x(0)).attr('y1',m.t).attr('y2',h-m.b).attr('stroke','var(--border)');
+      svg.append('path').datum(data).attr('d',d3.line().x(d=>x(d.p)).y(d=>y(d.t))).attr('fill','none').attr('stroke','var(--viz-series-1)').attr('stroke-width',3);
+      guideX=svg.append('line').attr('stroke','var(--border)').attr('stroke-dasharray','4 4');
+      guideY=svg.append('line').attr('stroke','var(--border)').attr('stroke-dasharray','4 4');
+      marker=svg.append('circle').attr('r',6).attr('fill','var(--viz-series-1)');
+      svg.append('text').attr('class','axis-title').attr('data-axis','x').attr('x',(m.l+w-m.r)/2).attr('y',h-12).attr('text-anchor','middle').text('Original price ($/MWh)');
+      svg.append('text').attr('class','axis-title').attr('data-axis','y').attr('transform','rotate(-90)').attr('x',-(m.t+h-m.b)/2).attr('y',17).attr('text-anchor','middle').text('Transformed price (unitless)');
+      svg.append('text').attr('x',m.l+10).attr('y',m.t+18).text('arcsinh(price / 100)');
+      update();
+    }
+    slider.addEventListener('input',update);
+    new ResizeObserver(draw).observe(root);
+    draw();
+  })();
+  </script>
+</div>

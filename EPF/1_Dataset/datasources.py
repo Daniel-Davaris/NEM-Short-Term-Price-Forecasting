@@ -1,8 +1,10 @@
 from pathlib import Path
 import logging
 import math
+import os
 import shutil
 import subprocess
+import tempfile
 import textwrap
 import traceback
 import zipfile
@@ -43,6 +45,7 @@ def _month_compiler(
     parts_dir = datasource_file_path.parent / f"{datasource_file_path.stem}_parts"
 
     datasource_file_year_month_range = set()
+    existing_months = set()
     # Check if the datasource file already exists, if so, check which years/months it has
     if datasource_file_path.exists() and datasource_file_path.stat().st_size > 0:
         try:
@@ -54,6 +57,7 @@ def _month_compiler(
             # returned near-nothing) is far below the typical month size and gets
             # re-fetched instead of being skipped as "processed" forever.
             month_counts = datasource_file_date_range.to_period("M").value_counts()
+            existing_months = {str(m) for m in month_counts.index}
             complete_threshold = max(2, 0.5 * month_counts.median()) if len(month_counts) else 0
             row_ok = set(month_counts[month_counts >= complete_threshold].index)
 
@@ -67,12 +71,24 @@ def _month_compiler(
             value_ok = set(row_ok)
             try:
                 import pyarrow.parquet as _pq
-                _cols = [c for c in _pq.ParquetFile(datasource_file_path).schema.names
+                _file = _pq.ParquetFile(datasource_file_path)
+                _cols = [c for c in _file.schema.names
                          if c != (datasource_file_date_range.name or "index")]
                 if _cols:
                     _step = max(1, len(_cols) // 100)
-                    _sample = pd.read_parquet(datasource_file_path, columns=_cols[::_step][:100])
-                    _nan_frac = _sample.isna().groupby(_sample.index.to_period("M")).mean().mean(axis=1)
+                    _sample_cols = _cols[::_step][:100]
+                    _nan_cells, _total_cells = {}, {}
+                    for _batch in _file.iter_batches(
+                        columns=[datasource_file_date_range.name] + _sample_cols,
+                        batch_size=8192,
+                    ):
+                        _sample = _batch.to_pandas()
+                        _periods = _sample.index.to_period("M")
+                        for _month in _periods.unique():
+                            _rows = _sample.loc[_periods == _month]
+                            _nan_cells[_month] = _nan_cells.get(_month, 0) + int(_rows.isna().sum().sum())
+                            _total_cells[_month] = _total_cells.get(_month, 0) + _rows.size
+                    _nan_frac = {m: _nan_cells[m] / _total_cells[m] for m in _total_cells}
                     value_ok = {m for m in row_ok if _nan_frac.get(m, 0.0) < 0.90}
             except Exception as e:
                 print(f"  (value-NaN check skipped: {e})", flush=True)
@@ -93,6 +109,7 @@ def _month_compiler(
             print(f"  Existing file unreadable ({e}) — discarding and rebuilding from scratch.", flush=True)
             datasource_file_path.unlink()
             datasource_file_year_month_range = set()
+            existing_months = set()
 
     # Also skip months already streamed to a *complete* part file by an
     # interrupted run. A tiny/partial part must be fetched again; blindly
@@ -241,12 +258,9 @@ def _month_compiler(
 
     # Assemble the single output parquet once, from the per-month parts (plus any
     # previously completed file), then drop the parts directory. The output is
-    # streamed one month at a time to a ParquetWriter rather than built from a
-    # single pd.concat(...).sort_index(): a wide forecast table (predispatch
-    # REGIONSUM is ~1950 columns → ~14 GB for one in-memory copy) needs 2-3 whole
-    # copies for concat+dedup+sort, which OOM-killed the kernel. Streaming holds at
-    # most one copy of the existing file plus one month. Re-fetched month parts
-    # override the stored month of the same name.
+    # streamed one month at a time to a ParquetWriter. Read the old file in small
+    # batches too: a single existing forecast parquet can exceed available RAM.
+    # Re-fetched month parts override the stored month of the same name.
     if parts_dir.exists() and any(parts_dir.glob("*.parquet")):
         import gc
         import os as _os
@@ -255,16 +269,12 @@ def _month_compiler(
         part_files = {p.stem: p for p in parts_dir.glob("*.parquet")}  # "YYYY-MM" -> Path
         have_existing = datasource_file_path.exists() and datasource_file_path.stat().st_size > 0
 
-        existing = pd.read_parquet(datasource_file_path) if have_existing else None
-        existing_periods = None
-        if existing is not None:
-            existing = existing[~existing.index.duplicated(keep="last")]
-            existing_periods = existing.index.to_period("M")
+        existing_file = _pq.ParquetFile(datasource_file_path) if have_existing else None
 
         # Fixed master column set = union of existing + every part, so each month is
         # written with an identical schema (missing entity/horizon combos become
         # NaN) — reproduces the column-union that pd.concat performed implicitly.
-        master_cols = list(existing.columns) if existing is not None else []
+        master_cols = [c for c in existing_file.schema_arrow.names if c != "Date"] if existing_file else []
         seen = set(master_cols)
         string_cols = {
             c for c in master_cols
@@ -285,23 +295,46 @@ def _month_compiler(
                 ):
                     string_cols.add(c)
 
-        months = set(part_files)
-        if existing_periods is not None:
-            months |= {str(x) for x in existing_periods.unique()}
+        months = set(part_files) | existing_months
+
+        def existing_by_month():
+            """Yield one old month at a time without loading the whole parquet."""
+            if existing_file is None:
+                return
+            current_month, frames = None, []
+            for batch in existing_file.iter_batches(batch_size=2048):
+                frame = batch.to_pandas()
+                periods = frame.index.to_period("M")
+                for period in periods.unique():
+                    month = str(period)
+                    if month != current_month and frames:
+                        yield current_month, pd.concat(frames)
+                        frames = []
+                    current_month = month
+                    if month not in part_files:
+                        frames.append(frame.loc[periods == period])
+                del frame, batch
+            if frames:
+                yield current_month, pd.concat(frames)
 
         tmp_path = datasource_file_path.with_suffix(".assembling.parquet")
         writer = None
         try:
+            old_months = iter(existing_by_month())
+            old = next(old_months, None)
             for m in sorted(months):  # "YYYY-MM" sorts chronologically
                 if m in part_files:
                     dfm = pd.read_parquet(part_files[m])
-                    dfm = dfm[~dfm.index.duplicated(keep="last")]
-                elif existing is not None:
-                    dfm = existing.loc[existing_periods == pd.Period(m, freq="M")]
                 else:
-                    continue
+                    while old is not None and old[0] < m:
+                        old = next(old_months, None)
+                    if old is None or old[0] != m:
+                        continue
+                    dfm = old[1]
+                    old = None
                 if dfm.empty:
                     continue
+                dfm = dfm[~dfm.index.duplicated(keep="last")]
                 dfm = dfm.sort_index().reindex(columns=master_cols)
                 # Missing entity columns are introduced by reindex as float NaN.
                 # Force domain string columns back to a nullable string dtype so
@@ -323,11 +356,13 @@ def _month_compiler(
                 writer.write_table(table)
                 del dfm, table
                 gc.collect()
+                if m not in part_files:
+                    old = next(old_months, None)
         finally:
             if writer is not None:
                 writer.close()
 
-        del existing
+        del old, old_months, existing_file
         gc.collect()
         _os.replace(tmp_path, datasource_file_path)
         shutil.rmtree(parts_dir)
@@ -353,7 +388,7 @@ def _one_shot_compiler(
         datasource_data.index.name = "SETTLEMENTDATE"
         datasource_data.to_parquet(datasource_file_path)
 
-        return pd.read_parquet(datasource_file_path)
+        return datasource_file_path
 
 
 """
@@ -737,19 +772,21 @@ def _nemseer_pull(
                 df.reset_index().to_csv(sys.stdout, index=False)
             """)
             
-            path = "/home/ec2-user/venv_sub/bin/python"  # EC2 Linux: python3.11 venv
+            path = os.environ.get("NEMSEER_PYTHON") or shutil.which("python3.11")
+            if path is None:
+                raise RuntimeError("Set NEMSEER_PYTHON to a Python 3.11 environment with nemseer installed")
 
-            result = subprocess.run(
-                [path, "-c", subprocess_code],
-                capture_output=True, text=True, cwd=Path.cwd(),
-            )
-
-            # Needs this to actually display errors from the subprocess
-            if result.returncode != 0 or not result.stdout.strip():
-                raise RuntimeError(f"nemseer subprocess failed:\n{result.stderr}")
-
-            API_response = pd.read_csv(io.StringIO(result.stdout))
-            return API_response
+            # Keep the CSV off the Python heap; forecast months can be very large.
+            with tempfile.TemporaryFile(mode="w+t") as output:
+                result = subprocess.run(
+                    [path, "-c", subprocess_code],
+                    stdout=output, stderr=subprocess.PIPE, text=True, cwd=Path.cwd(),
+                )
+                output.seek(0)
+                if result.returncode != 0 or not output.read(1):
+                    raise RuntimeError(f"nemseer subprocess failed:\n{result.stderr}")
+                output.seek(0)
+                return pd.read_csv(output)
 
         def _API_call_backup():
             """

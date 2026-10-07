@@ -2,7 +2,7 @@
 # python3 -m venv venv-EPF-subprocess
 # Install with: pip install -r requirements-subprocess.txt
 # Create env: python3.11 -m venv ~/venv311 && source ~/venv311/bin/activate
+# Set NEMSEER_PYTHON to that environment's bin/python when running the datasource notebook.
 
 nemseer>=1.0.0
 pandas>=2.0.0            # subprocess code imports pandas directly
-

@@ -6,3 +6,6 @@
 *.joblib
 *.pyc
 *.log
+__pycache__/
+.ipynb_checkpoints/
+/EPF/1_Dataset/Pre_processing/temporary_cache/
